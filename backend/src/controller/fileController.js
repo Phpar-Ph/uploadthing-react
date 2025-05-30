@@ -1,7 +1,7 @@
 import File from "../model/fileSchema.js";
 import { UTApi } from "uploadthing/server";
 export const saveFileLink = async (req, res) => {
-  const { fileLink, imageKey } = req.body;
+  const { fileLink, imageKey, name, size } = req.body;
 
   try {
     if (!fileLink) {
@@ -10,15 +10,26 @@ export const saveFileLink = async (req, res) => {
         message: "File is empty",
       });
     }
-    const file = new File({
-      fileLink,
-      imageKey,
+    // Save a new document with one file entry
+    const fileData = new File({
+      file: [
+        {
+          fileLink,
+          imageKey,
+          name,
+          size,
+        },
+      ],
     });
-    await file.save();
+
+    await fileData.save();
     res.status(200).json({
       success: true,
       message: "Uploaded Successfully",
       fileLink,
+      imageKey,
+      name,
+      size,
     });
   } catch (error) {
     res.json({
@@ -56,13 +67,15 @@ export const deleteFile = async (req, res) => {
     if (!imageKey) {
       return res.status(400).json({
         success: false,
-        message: "File link is required",
+        message: "File key is required",
       });
     }
     await utApi.deleteFiles(imageKey);
 
     // Delete from MongoDB using imageKey
-    const deletedFile = await File.findOneAndDelete({ imageKey });
+    const deletedFile = await File.findOneAndDelete({
+      "file.imageKey": imageKey,
+    });
     if (!deletedFile) {
       return res.status(404).json({
         success: false,

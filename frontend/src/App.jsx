@@ -3,25 +3,30 @@ import axios from "axios";
 import { useState } from "react";
 function App() {
   const BACKEND_URL = "http://localhost:5000";
-  const [profilePicture, setProfilePicture] = useState(null);
-  // const [imageKey, setImageKey] = useState();
-  const [fileKey, setFileKey] = useState(null);
 
-  const saveProfilePicture = async (fileUrl, fileKey) => {
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const saveProfilePicture = async (file) => {
     try {
       const { data } = await axios.post(
         BACKEND_URL + "/api/saveFileLink",
-        { fileLink: fileUrl, imageKey: fileKey },
+        {
+          fileLink: file.ufsUrl,
+          imageKey: file.key,
+          name: file.name,
+          size: file.size,
+        },
         { withCredentials: true }
       );
       if (data.success) {
-        alert("file save to database");
+        console.log("file save to database");
+        console.log("File save : ", file.ufsUrl);
       }
     } catch (error) {
       console.log(error.message);
     }
   };
   const handleRemove = async (fileKey) => {
+    console.log("File key : ", fileKey);
     try {
       const { data } = await axios.delete(
         BACKEND_URL + "/api/delete-file",
@@ -29,9 +34,9 @@ function App() {
         { withCredentials: true }
       );
       if (data.success) {
-        alert("file remove");
+        setUploadedFiles((prev) => prev.filter((e) => e.key !== fileKey));
+        console.log("file remove");
       }
-      console.log("Removing..");
     } catch (error) {
       console.log(error.message);
     }
@@ -43,11 +48,15 @@ function App() {
         <div>
           <UploadDropzone
             endpoint={(routeRegistry) => routeRegistry.videoAndImage}
-            onClientUploadComplete={(res) => {
-              if (res?.[0]?.ufsUrl) {
-                saveProfilePicture(res[0].ufsUrl, res[0].key);
-                setFileKey(res[0].key);
-                setProfilePicture(res[0].ufsUrl);
+            onClientUploadComplete={async (res) => {
+              if (!res) return;
+
+              const files = Array.isArray(res) ? res : [res];
+              for (const file of files) {
+                if (file?.ufsUrl) {
+                  await saveProfilePicture(file);
+                  setUploadedFiles((prev) => [...prev, file]);
+                }
               }
             }}
             onUploadError={(error) => {
@@ -56,16 +65,26 @@ function App() {
             }}
           />
         </div>
-        <div className="m-4 flex justify-center">
-          <button
-            onClick={() => handleRemove(fileKey)}
-            className="bg-amber-700 p-4 rounded-2xl text-2xl font-bold text-white"
-          >
-            Delete
-          </button>
-        </div>
-        <div className="">
-          <img src={profilePicture} alt="" />
+
+        {/* Display uploaded files */}
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          {uploadedFiles.map((file) => (
+            <div key={file.key} className="relative">
+              <img
+                src={file.ufsUrl}
+                alt={file.name}
+                className="w-full rounded-lg"
+              />
+              <div className="m-4 flex justify-center">
+                <button
+                  onClick={() => handleRemove(file.key)}
+                  className="bg-amber-700 p-4 rounded-2xl text-2xl font-bold text-white"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

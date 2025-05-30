@@ -32,14 +32,37 @@ export const uploadRouter = {
         uploadedBy: "fake-user-id-213",
       };
     })
+
     .onUploadError(({ error, fileKey }) => {
       console.log("upload error", { message: error.message, fileKey });
       throw error;
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      console.log("upload completed", metadata, file);
-      // await new Promise((r) => setTimeout(r, 15000));
-      return { foo: "bar", baz: "qux" };
+      try {
+        // Create new file document in database
+        const newFile = await File.create({
+          file: [
+            {
+              fileLink: file.ufsUrl,
+              imageKey: file.key,
+              name: file.name,
+              size: file.size,
+              // uploadedBy: metadata.uploadedBy,
+            },
+          ],
+        });
+
+        console.log("File saved to database:", newFile);
+
+        return {
+          success: true,
+          fileId: newFile._id,
+          url: file.ufsUrl,
+        };
+      } catch (error) {
+        console.error("Database save error:", error);
+        throw new Error("Failed to save file to database");
+      }
     }),
 };
 
